@@ -1,0 +1,353 @@
+import type { Cart, Collection, Product } from "./types";
+
+const domain = process.env.SHOPIFY_STORE_DOMAIN ?? "";
+const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN ?? "";
+const endpoint = `https://${domain}/api/2024-10/graphql.json`;
+
+// Color name → hex map for swatch display
+const SUIT_COLOR_HEX: Record<string, string> = {
+  "navy": "#0c1a2e",
+  "navy blue": "#0c1a2e",
+  "dark navy": "#0c1a2e",
+  "black": "#141414",
+  "midnight black": "#141414",
+  "charcoal": "#2d2d2d",
+  "dark grey": "#3a3a3a",
+  "dark gray": "#3a3a3a",
+  "grey": "#808080",
+  "gray": "#808080",
+  "light grey": "#b8b8b8",
+  "light gray": "#b8b8b8",
+  "burgundy": "#6b1a2e",
+  "wine": "#6b1a2e",
+  "royal blue": "#1a3a8c",
+  "cobalt blue": "#1a5ab5",
+  "forest green": "#1a3a2e",
+  "hunter green": "#1a3a2e",
+  "emerald": "#1a4a2e",
+  "ivory": "#e8e0d0",
+  "white": "#f0f0f0",
+  "off white": "#e8e0d0",
+  "cream": "#e8e0d0",
+  "dusty rose": "#c4806c",
+  "rose": "#c4806c",
+  "blush": "#d4a0a0",
+  "light blue": "#4a7ab5",
+  "sky blue": "#5a8fc5",
+  "teal": "#1a5a5a",
+  "purple": "#4a1a6a",
+  "plum": "#3a1040",
+  "red": "#8c1a1a",
+  "tan": "#b08040",
+  "brown": "#5a3a1a",
+  "khaki": "#c0a878",
+  "gold": "#b8942a",
+  "silver": "#8a8a8a",
+  "pink": "#d4788a",
+  "coral": "#d4806a",
+  "mint": "#6ab8a0",
+  "lavender": "#9a8ab8",
+};
+
+export function getColorHex(colorName: string): string {
+  return SUIT_COLOR_HEX[colorName.toLowerCase()] ?? "#808080";
+}
+
+type ShopifyResponse<T> = {
+  data: T;
+  errors?: { message: string }[];
+};
+
+async function shopifyFetch<T>(
+  query: string,
+  variables?: Record<string, unknown>
+): Promise<T> {
+  if (!domain || !storefrontAccessToken) {
+    throw new Error("Shopify environment variables are not configured.");
+  }
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+    next: { revalidate: 60 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Shopify fetch failed: ${res.status}`);
+  }
+
+  const json: ShopifyResponse<T> = await res.json();
+
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("\n"));
+  }
+
+  return json.data;
+}
+
+// ── Fragments ────────────────────────────────────────────────────────────────
+
+const IMAGE_FRAGMENT = `
+  fragment ImageFields on Image {
+    url
+    altText
+    width
+    height
+  }
+`;
+
+const PRODUCT_FRAGMENT = `
+  ${IMAGE_FRAGMENT}
+  fragment ProductFields on Product {
+    id
+    title
+    handle
+    description
+    descriptionHtml
+    vendor
+    productType
+    tags
+    featuredImage { ...ImageFields }
+    images(first: 12) { nodes { ...ImageFields } }
+    options { name values }
+    variants(first: 100) {
+      nodes {
+        id
+        title
+        availableForSale
+        selectedOptions { name value }
+        price { amount currencyCode }
+        compareAtPrice { amount currencyCode }
+        image { ...ImageFields }
+      }
+    }
+    priceRange {
+      minVariantPrice { amount currencyCode }
+      maxVariantPrice { amount currencyCode }
+    }
+  }
+`;
+
+const CART_FRAGMENT = `
+  ${IMAGE_FRAGMENT}
+  fragment CartFields on Cart {
+    id
+    checkoutUrl
+    totalQuantity
+    cost {
+      totalAmount { amount currencyCode }
+      subtotalAmount { amount currencyCode }
+      totalTaxAmount { amount currencyCode }
+    }
+    lines(first: 100) {
+      nodes {
+        id
+        quantity
+        merchandise {
+          ... on ProductVariant {
+            id
+            title
+            product {
+              title
+              handle
+              featuredImage { ...ImageFields }
+            }
+            price { amount currencyCode }
+            image { ...ImageFields }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// ── Raw types (Shopify returns nodes inside arrays) ───────────────────────────
+
+type RawProduct = Omit<Product, "images" | "variants"> & {
+  images: { nodes: Product["images"] };
+  variants: { nodes: RawVariant[] };
+};
+
+type RawVariant = Omit<Product["variants"][0], "compareAtPrice"> & {
+  compareAtPrice: { amount: string; currencyCode: string } | null;
+};
+
+type RawCart = Omit<Cart, "lines"> & {
+  lines: { nodes: Cart["lines"] };
+};
+
+// ── Reshape helpers ───────────────────────────────────────────────────────────
+
+function reshapeProduct(raw: RawProduct): Product {
+  return {
+    ...raw,
+    images: raw.images.nodes,
+    variants: raw.variants.nodes,
+  };
+}
+
+function reshapeCart(raw: RawCart): Cart {
+  return { ...raw, lines: raw.lines.nodes };
+}
+
+// ── Product queries ───────────────────────────────────────────────────────────
+
+export async function getProducts(first: number = 20): Promise<Product[]> {
+  const query = `
+    ${PRODUCT_FRAGMENT}
+    query GetProducts($first: Int!) {
+      products(first: $first) {
+        nodes { ...ProductFields }
+      }
+    }
+  `;
+  const data = await shopifyFetch<{ products: { nodes: RawProduct[] } }>(
+    query,
+    { first }
+  );
+  return data.products.nodes.map(reshapeProduct);
+}
+
+export async function getProduct(handle: string): Promise<Product | null> {
+  const query = `
+    ${PRODUCT_FRAGMENT}
+    query GetProduct($handle: String!) {
+      productByHandle(handle: $handle) { ...ProductFields }
+    }
+  `;
+  const data = await shopifyFetch<{ productByHandle: RawProduct | null }>(
+    query,
+    { handle }
+  );
+  if (!data.productByHandle) return null;
+  return reshapeProduct(data.productByHandle);
+}
+
+// ── Collection queries ────────────────────────────────────────────────────────
+
+export async function getCollections(
+  first: number = 20
+): Promise<Omit<Collection, "products">[]> {
+  const query = `
+    ${IMAGE_FRAGMENT}
+    query GetCollections($first: Int!) {
+      collections(first: $first) {
+        nodes {
+          id title handle description
+          image { ...ImageFields }
+        }
+      }
+    }
+  `;
+  const data = await shopifyFetch<{
+    collections: { nodes: Omit<Collection, "products">[] };
+  }>(query, { first });
+  return data.collections.nodes;
+}
+
+export async function getCollection(handle: string): Promise<Collection | null> {
+  const query = `
+    ${PRODUCT_FRAGMENT}
+    query GetCollection($handle: String!) {
+      collection(handle: $handle) {
+        id title handle description
+        image { url altText width height }
+        products(first: 50) { nodes { ...ProductFields } }
+      }
+    }
+  `;
+  const data = await shopifyFetch<{
+    collection:
+      | (Omit<Collection, "products"> & {
+          products: { nodes: RawProduct[] };
+        })
+      | null;
+  }>(query, { handle });
+
+  if (!data.collection) return null;
+
+  return {
+    ...data.collection,
+    products: data.collection.products.nodes.map(reshapeProduct),
+  };
+}
+
+// ── Cart mutations ────────────────────────────────────────────────────────────
+
+export async function createCart(): Promise<Cart> {
+  const query = `
+    ${CART_FRAGMENT}
+    mutation CartCreate {
+      cartCreate { cart { ...CartFields } }
+    }
+  `;
+  const data = await shopifyFetch<{ cartCreate: { cart: RawCart } }>(query);
+  return reshapeCart(data.cartCreate.cart);
+}
+
+export async function addToCart(
+  cartId: string,
+  lines: { merchandiseId: string; quantity: number }[]
+): Promise<Cart> {
+  const query = `
+    ${CART_FRAGMENT}
+    mutation CartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+      cartLinesAdd(cartId: $cartId, lines: $lines) { cart { ...CartFields } }
+    }
+  `;
+  const data = await shopifyFetch<{ cartLinesAdd: { cart: RawCart } }>(query, {
+    cartId,
+    lines,
+  });
+  return reshapeCart(data.cartLinesAdd.cart);
+}
+
+export async function updateCart(
+  cartId: string,
+  lines: { id: string; quantity: number }[]
+): Promise<Cart> {
+  const query = `
+    ${CART_FRAGMENT}
+    mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
+      cartLinesUpdate(cartId: $cartId, lines: $lines) { cart { ...CartFields } }
+    }
+  `;
+  const data = await shopifyFetch<{ cartLinesUpdate: { cart: RawCart } }>(
+    query,
+    { cartId, lines }
+  );
+  return reshapeCart(data.cartLinesUpdate.cart);
+}
+
+export async function removeFromCart(
+  cartId: string,
+  lineIds: string[]
+): Promise<Cart> {
+  const query = `
+    ${CART_FRAGMENT}
+    mutation CartLinesRemove($cartId: ID!, $lineIds: [ID!]!) {
+      cartLinesRemove(cartId: $cartId, lineIds: $lineIds) { cart { ...CartFields } }
+    }
+  `;
+  const data = await shopifyFetch<{ cartLinesRemove: { cart: RawCart } }>(
+    query,
+    { cartId, lineIds }
+  );
+  return reshapeCart(data.cartLinesRemove.cart);
+}
+
+export async function getCart(cartId: string): Promise<Cart | null> {
+  const query = `
+    ${CART_FRAGMENT}
+    query GetCart($cartId: ID!) {
+      cart(id: $cartId) { ...CartFields }
+    }
+  `;
+  const data = await shopifyFetch<{ cart: RawCart | null }>(query, { cartId });
+  if (!data.cart) return null;
+  return reshapeCart(data.cart);
+}

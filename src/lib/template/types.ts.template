@@ -1,0 +1,82 @@
+export type Money = {
+  amount: string;
+  currencyCode: string;
+};
+
+export type Image = {
+  url: string;
+  altText: string | null;
+  width: number;
+  height: number;
+};
+
+export type ProductVariant = {
+  id: string;
+  title: string;
+  availableForSale: boolean;
+  selectedOptions: { name: string; value: string }[];
+  price: Money;
+  compareAtPrice: Money | null;
+  image: Image | null;
+};
+
+export type ProductOption = {
+  name: string;
+  values: string[];
+};
+
+export type Product = {
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  descriptionHtml: string;
+  vendor: string;
+  productType: string;
+  tags: string[];
+  featuredImage: Image | null;
+  images: Image[];
+  variants: ProductVariant[];
+  options: ProductOption[];
+  priceRange: {
+    minVariantPrice: Money;
+    maxVariantPrice: Money;
+  };
+};
+
+export type Collection = {
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  image: Image | null;
+  products: Product[];
+};
+
+export type CartLine = {
+  id: string;
+  quantity: number;
+  merchandise: {
+    id: string;
+    title: string;
+    product: {
+      title: string;
+      handle: string;
+      featuredImage: Image | null;
+    };
+    price: Money;
+    image: Image | null;
+  };
+};
+
+export type Cart = {
+  id: string;
+  checkoutUrl: string;
+  totalQuantity: number;
+  cost: {
+    totalAmount: Money;
+    subtotalAmount: Money;
+    totalTaxAmount: Money | null;
+  };
+  lines: CartLine[];
+};

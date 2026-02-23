@@ -1,0 +1,128 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
+import type { Cart } from "@/lib/types";
+
+type CartContextType = {
+  cart: Cart | null;
+  loading: boolean;
+  addItem: (variantId: string) => Promise<void>;
+  updateItem: (lineId: string, quantity: number) => Promise<void>;
+  removeItem: (lineId: string) => Promise<void>;
+};
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  return ctx;
+}
+
+async function cartFetch(
+  action: string,
+  body: Record<string, unknown>
+): Promise<Cart> {
+  const res = await fetch("/api/cart", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...body }),
+  });
+  if (!res.ok) throw new Error("Cart request failed");
+  return res.json();
+}
+
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    const cartId = localStorage.getItem("cartId");
+    if (!cartId) return;
+    cartFetch("get", { cartId })
+      .then((c) => {
+        if (c) {
+          setCart(c);
+        } else {
+          localStorage.removeItem("cartId");
+        }
+      })
+      .catch(() => localStorage.removeItem("cartId"));
+  }, []);
+
+  const ensureCart = useCallback(async (): Promise<Cart> => {
+    if (cart) return cart;
+    const newCart = await cartFetch("create", {});
+    localStorage.setItem("cartId", newCart.id);
+    setCart(newCart);
+    return newCart;
+  }, [cart]);
+
+  const addItem = useCallback(
+    async (variantId: string) => {
+      setLoading(true);
+      try {
+        const current = await ensureCart();
+        const updated = await cartFetch("add", {
+          cartId: current.id,
+          lines: [{ merchandiseId: variantId, quantity: 1 }],
+        });
+        setCart(updated);
+      } finally {
+        startTransition(() => setLoading(false));
+      }
+    },
+    [ensureCart]
+  );
+
+  const updateItem = useCallback(
+    async (lineId: string, quantity: number) => {
+      if (!cart) return;
+      setLoading(true);
+      try {
+        const updated =
+          quantity === 0
+            ? await cartFetch("remove", { cartId: cart.id, lineIds: [lineId] })
+            : await cartFetch("update", {
+                cartId: cart.id,
+                lines: [{ id: lineId, quantity }],
+              });
+        setCart(updated);
+      } finally {
+        startTransition(() => setLoading(false));
+      }
+    },
+    [cart]
+  );
+
+  const removeItem = useCallback(
+    async (lineId: string) => {
+      if (!cart) return;
+      setLoading(true);
+      try {
+        const updated = await cartFetch("remove", {
+          cartId: cart.id,
+          lineIds: [lineId],
+        });
+        setCart(updated);
+      } finally {
+        startTransition(() => setLoading(false));
+      }
+    },
+    [cart]
+  );
+
+  return (
+    <CartContext.Provider value={{ cart, loading, addItem, updateItem, removeItem }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
