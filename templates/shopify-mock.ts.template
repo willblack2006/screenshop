@@ -1,0 +1,293 @@
+// Demo mode — returns static mock data. No Shopify account required.
+// To connect a real Shopify store, run /setup-shopify in Claude Code.
+import type { Cart, Collection, Product } from "./types";
+
+export function getColorHex(colorName: string): string {
+  const colors: Record<string, string> = {
+    black: "#141414", white: "#f0f0f0", navy: "#0c1a2e", gray: "#808080",
+    red: "#8c1a1a", blue: "#1a3a8c", green: "#1a3a2e", purple: "#4a1a6a",
+    beige: "#d4b896", brown: "#5a3a1a", pink: "#d4788a", teal: "#1a5a5a",
+  };
+  return colors[colorName.toLowerCase()] ?? "#808080";
+}
+
+function img(label: string, w = 800, h = 1000) {
+  return {
+    url: `https://placehold.co/${w}x${h}/f0f0f0/999999?text=${encodeURIComponent(label)}`,
+    altText: label,
+    width: w,
+    height: h,
+  };
+}
+const money = (amount: string) => ({ amount, currencyCode: "USD" });
+const variant = (id: string, size: string, color: string, price: string) => ({
+  id,
+  title: `${size} / ${color}`,
+  availableForSale: true,
+  selectedOptions: [{ name: "Size", value: size }, { name: "Color", value: color }],
+  price: money(price),
+  compareAtPrice: null as null,
+  image: img(`${color}+${size}`),
+});
+
+const PRODUCTS: Product[] = [
+  {
+    id: "gid://mock/Product/1",
+    title: "Essential Crew Neck",
+    handle: "essential-crew-neck",
+    description: "A timeless crew neck in premium cotton. Relaxed fit, everyday comfort.",
+    descriptionHtml: "<p>A timeless crew neck in premium cotton. Relaxed fit, everyday comfort.</p>",
+    vendor: "Demo Brand",
+    productType: "Tops",
+    tags: ["basics", "new-arrivals"],
+    featuredImage: img("Essential+Crew+Neck"),
+    images: [img("Essential+Crew+Neck"), img("Crew+Neck+Back")],
+    options: [{ name: "Size", values: ["XS", "S", "M", "L", "XL"] }, { name: "Color", values: ["Black", "White", "Navy"] }],
+    variants: [
+      variant("v1-s-black", "S", "Black", "49.00"),
+      variant("v1-m-black", "M", "Black", "49.00"),
+      variant("v1-l-black", "L", "Black", "49.00"),
+      variant("v1-s-white", "S", "White", "49.00"),
+      variant("v1-m-white", "M", "White", "49.00"),
+    ],
+    priceRange: { minVariantPrice: money("49.00"), maxVariantPrice: money("49.00") },
+  },
+  {
+    id: "gid://mock/Product/2",
+    title: "Slim Chino Pant",
+    handle: "slim-chino-pant",
+    description: "Tailored slim chinos with a touch of stretch for all-day wear.",
+    descriptionHtml: "<p>Tailored slim chinos with a touch of stretch for all-day wear.</p>",
+    vendor: "Demo Brand",
+    productType: "Bottoms",
+    tags: ["trousers", "office-ready"],
+    featuredImage: img("Slim+Chino"),
+    images: [img("Slim+Chino"), img("Chino+Detail")],
+    options: [{ name: "Size", values: ["28", "30", "32", "34", "36"] }, { name: "Color", values: ["Beige", "Navy", "Black"] }],
+    variants: [
+      variant("v2-30-beige", "30", "Beige", "79.00"),
+      variant("v2-32-beige", "32", "Beige", "79.00"),
+      variant("v2-30-navy", "30", "Navy", "79.00"),
+      variant("v2-32-navy", "32", "Navy", "79.00"),
+    ],
+    priceRange: { minVariantPrice: money("79.00"), maxVariantPrice: money("79.00") },
+  },
+  {
+    id: "gid://mock/Product/3",
+    title: "Linen Button-Down",
+    handle: "linen-button-down",
+    description: "Breathable summer linen, relaxed cut, perfect for warm days.",
+    descriptionHtml: "<p>Breathable summer linen, relaxed cut, perfect for warm days.</p>",
+    vendor: "Demo Brand",
+    productType: "Tops",
+    tags: ["summer", "linen"],
+    featuredImage: img("Linen+Shirt"),
+    images: [img("Linen+Shirt"), img("Linen+Shirt+Detail")],
+    options: [{ name: "Size", values: ["S", "M", "L", "XL"] }, { name: "Color", values: ["White", "Beige", "Blue"] }],
+    variants: [
+      variant("v3-s-white", "S", "White", "89.00"),
+      variant("v3-m-white", "M", "White", "89.00"),
+      variant("v3-m-beige", "M", "Beige", "89.00"),
+    ],
+    priceRange: { minVariantPrice: money("89.00"), maxVariantPrice: money("89.00") },
+  },
+  {
+    id: "gid://mock/Product/4",
+    title: "Merino Wool Sweater",
+    handle: "merino-wool-sweater",
+    description: "Ultra-soft 100% merino wool. Warm without bulk.",
+    descriptionHtml: "<p>Ultra-soft 100% merino wool. Warm without bulk.</p>",
+    vendor: "Demo Brand",
+    productType: "Tops",
+    tags: ["knitwear", "winter"],
+    featuredImage: img("Merino+Sweater"),
+    images: [img("Merino+Sweater"), img("Sweater+Detail")],
+    options: [{ name: "Size", values: ["S", "M", "L", "XL"] }, { name: "Color", values: ["Gray", "Navy", "Brown"] }],
+    variants: [
+      variant("v4-s-gray", "S", "Gray", "139.00"),
+      variant("v4-m-gray", "M", "Gray", "139.00"),
+      variant("v4-l-gray", "L", "Gray", "139.00"),
+      variant("v4-m-navy", "M", "Navy", "139.00"),
+    ],
+    priceRange: { minVariantPrice: money("139.00"), maxVariantPrice: money("139.00") },
+  },
+  {
+    id: "gid://mock/Product/5",
+    title: "Canvas Tote Bag",
+    handle: "canvas-tote-bag",
+    description: "Heavy-duty waxed canvas tote. Built to last.",
+    descriptionHtml: "<p>Heavy-duty waxed canvas tote. Built to last.</p>",
+    vendor: "Demo Brand",
+    productType: "Accessories",
+    tags: ["bags", "accessories"],
+    featuredImage: img("Canvas+Tote", 800, 800),
+    images: [img("Canvas+Tote", 800, 800)],
+    options: [{ name: "Color", values: ["Black", "Beige"] }],
+    variants: [
+      variant("v5-black", "One Size", "Black", "59.00"),
+      variant("v5-beige", "One Size", "Beige", "59.00"),
+    ],
+    priceRange: { minVariantPrice: money("59.00"), maxVariantPrice: money("59.00") },
+  },
+  {
+    id: "gid://mock/Product/6",
+    title: "Leather Belt",
+    handle: "leather-belt",
+    description: "Full-grain leather belt with brass buckle. Made to age beautifully.",
+    descriptionHtml: "<p>Full-grain leather belt with brass buckle. Made to age beautifully.</p>",
+    vendor: "Demo Brand",
+    productType: "Accessories",
+    tags: ["accessories", "leather"],
+    featuredImage: img("Leather+Belt", 800, 400),
+    images: [img("Leather+Belt", 800, 400)],
+    options: [{ name: "Size", values: ["30", "32", "34", "36", "38"] }],
+    variants: [
+      { id: "v6-32", title: "32", availableForSale: true, selectedOptions: [{ name: "Size", value: "32" }], price: money("69.00"), compareAtPrice: null, image: img("Leather+Belt", 800, 400) },
+      { id: "v6-34", title: "34", availableForSale: true, selectedOptions: [{ name: "Size", value: "34" }], price: money("69.00"), compareAtPrice: null, image: img("Leather+Belt", 800, 400) },
+    ],
+    priceRange: { minVariantPrice: money("69.00"), maxVariantPrice: money("69.00") },
+  },
+];
+
+const COLLECTIONS: Collection[] = [
+  {
+    id: "gid://mock/Collection/1",
+    title: "New Arrivals",
+    handle: "new-arrivals",
+    description: "Fresh styles added this season.",
+    image: img("New+Arrivals", 1200, 600),
+    products: PRODUCTS.filter(p => p.tags.includes("new-arrivals")).concat(PRODUCTS.slice(0, 3)),
+  },
+  {
+    id: "gid://mock/Collection/2",
+    title: "Tops",
+    handle: "tops",
+    description: "Shirts, tees, and sweaters for every occasion.",
+    image: img("Tops+Collection", 1200, 600),
+    products: PRODUCTS.filter(p => p.productType === "Tops"),
+  },
+  {
+    id: "gid://mock/Collection/3",
+    title: "Accessories",
+    handle: "accessories",
+    description: "The finishing touches that complete any outfit.",
+    image: img("Accessories", 1200, 600),
+    products: PRODUCTS.filter(p => p.productType === "Accessories"),
+  },
+];
+
+export async function getProducts(_first = 20): Promise<Product[]> {
+  return PRODUCTS;
+}
+
+export async function getProduct(handle: string): Promise<Product | null> {
+  return PRODUCTS.find(p => p.handle === handle) ?? PRODUCTS[0];
+}
+
+export async function getCollections(_first = 20): Promise<Omit<Collection, "products">[]> {
+  return COLLECTIONS.map(({ products: _p, ...rest }) => rest);
+}
+
+export async function getCollection(handle: string): Promise<Collection | null> {
+  return COLLECTIONS.find(c => c.handle === handle) ?? COLLECTIONS[0];
+}
+
+// ── In-memory mock cart ───────────────────────────────────────────────────────
+
+const carts = new Map<string, Cart>();
+
+function emptyCart(id: string): Cart {
+  return {
+    id,
+    checkoutUrl: "#",
+    totalQuantity: 0,
+    cost: {
+      totalAmount: money("0.00"),
+      subtotalAmount: money("0.00"),
+      totalTaxAmount: null,
+    },
+    lines: [],
+  };
+}
+
+function recalc(cart: Cart): Cart {
+  const subtotal = cart.lines.reduce(
+    (sum, l) => sum + parseFloat(l.merchandise.price.amount) * l.quantity,
+    0
+  );
+  return {
+    ...cart,
+    totalQuantity: cart.lines.reduce((sum, l) => sum + l.quantity, 0),
+    cost: {
+      subtotalAmount: money(subtotal.toFixed(2)),
+      totalAmount: money(subtotal.toFixed(2)),
+      totalTaxAmount: null,
+    },
+  };
+}
+
+export async function createCart(): Promise<Cart> {
+  const id = `mock-cart-${Math.random().toString(36).slice(2)}`;
+  const cart = emptyCart(id);
+  carts.set(id, cart);
+  return cart;
+}
+
+export async function getCart(cartId: string): Promise<Cart | null> {
+  return carts.get(cartId) ?? null;
+}
+
+export async function addToCart(
+  cartId: string,
+  lines: { merchandiseId: string; quantity: number }[]
+): Promise<Cart> {
+  const cart = carts.get(cartId) ?? emptyCart(cartId);
+  for (const l of lines) {
+    const variant = PRODUCTS.flatMap(p => p.variants).find(v => v.id === l.merchandiseId);
+    if (!variant) continue;
+    const product = PRODUCTS.find(p => p.variants.some(v => v.id === l.merchandiseId))!;
+    const existing = cart.lines.find(cl => cl.merchandise.id === l.merchandiseId);
+    if (existing) {
+      existing.quantity += l.quantity;
+    } else {
+      cart.lines.push({
+        id: `line-${Math.random().toString(36).slice(2)}`,
+        quantity: l.quantity,
+        merchandise: {
+          id: variant.id,
+          title: variant.title,
+          product: { title: product.title, handle: product.handle, featuredImage: product.featuredImage },
+          price: variant.price,
+          image: variant.image,
+        },
+      });
+    }
+  }
+  const updated = recalc(cart);
+  carts.set(cartId, updated);
+  return updated;
+}
+
+export async function updateCart(
+  cartId: string,
+  lines: { id: string; quantity: number }[]
+): Promise<Cart> {
+  const cart = carts.get(cartId) ?? emptyCart(cartId);
+  for (const l of lines) {
+    const line = cart.lines.find(cl => cl.id === l.id);
+    if (line) line.quantity = l.quantity;
+  }
+  const updated = recalc({ ...cart, lines: cart.lines.filter(l => l.quantity > 0) });
+  carts.set(cartId, updated);
+  return updated;
+}
+
+export async function removeFromCart(
+  cartId: string,
+  lineIds: string[]
+): Promise<Cart> {
+  const cart = carts.get(cartId) ?? emptyCart(cartId);
+  const updated = recalc({ ...cart, lines: cart.lines.filter(l => !lineIds.includes(l.id)) });
+  carts.set(cartId, updated);
+  return updated;
+}

@@ -1,34 +1,36 @@
 THIS FILE IS BINDING.
 
-This is the screenshop generator tool — a Next.js App Router app that generates Shopify storefronts from screenshots using Claude's vision API.
+screenshop is a Claude Code project. There is no web UI. Claude Code IS the AI.
 
-GLOBAL RULES
-- Do not invent architecture.
-- Do not introduce new tools without approval.
-- Do not add features not in this plan.
-- Assume the simplest correct solution.
+## What this project does
 
-ALLOWED TECHNOLOGIES
-- Next.js App Router
-- React / TypeScript
-- Tailwind CSS 4
-- Anthropic Messages API (vision)
-- jszip
-- @monaco-editor/react
+When a user says "clone casely.com — I sell phone cases", Claude Code:
+1. Screenshots the target site with Puppeteer
+2. Reads the screenshot and analyzes the design
+3. Generates a complete Next.js storefront in `output/<slug>/`
+4. Copies boilerplate templates from `templates/`
+5. Runs `npm install` and starts the dev server
+6. Screenshots the result
+7. Reports back with paths to the project and screenshots
 
-FORBIDDEN
-- Stripe, Firebase, Supabase, Prisma, MongoDB
-- Any auth provider
-- Any database
-- Shopify Admin API
-- REST APIs
+## How to invoke
 
-CREDENTIAL RULES
-- ANTHROPIC_API_KEY lives in .env.local only — never in client code
-- SHOPIFY_STORE_DOMAIN and SHOPIFY_STOREFRONT_ACCESS_TOKEN live in .env.local only
-- No credentials are ever accepted from the browser UI
+Use the `/clone-site` command or just describe the site you want to clone:
+> "clone casely.com — I'm selling phone cases"
 
-DEFINITION OF DONE
-- npm run build passes with zero TypeScript errors
-- A screenshot upload triggers a real Claude API call
-- The download produces a valid, runnable Next.js ZIP
+## Project layout
+
+- `scripts/screenshot.mjs` — Puppeteer: takes URL + output dir, saves PNGs
+- `templates/` — boilerplate files copied into every generated project
+- `.claude/commands/clone-site.md` — the main skill
+- `.claude/commands/setup-shopify.md` — connect a generated store to real Shopify
+- `.claude/commands/shopify-headless.md` — advanced Shopify headless patterns
+- `output/` — generated projects land here (gitignored)
+- `screenshots/` — source + result screenshots (gitignored)
+
+## Rules
+
+- Do not run `npm install` or `npm run dev` in this root directory — only in `output/<slug>/`
+- Do not modify files in `templates/` unless fixing a bug in the boilerplate
+- Do not add features not described in this file or the skill documents
+- Shopify is optional — generated stores work immediately with mock data
