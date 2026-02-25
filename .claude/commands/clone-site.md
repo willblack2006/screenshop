@@ -572,31 +572,139 @@ done
 node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
 ```
 
-Read the resulting screenshot with the Read tool to verify it looks reasonable.
+Keep the dev server running — you'll need it for the polish pass.
 
 ---
 
-## Step 12 — Stop the dev server
+## Step 12 — Visual gap analysis
 
-Kill the dev server process started in Step 9.
+Read all four screenshots simultaneously using the Read tool:
+
+1. `screenshots/source-<slug>/screenshot.png`
+2. `screenshots/source-<slug>/screenshot-mobile.png`
+3. `screenshots/result-<slug>/screenshot.png`
+4. `screenshots/result-<slug>/screenshot-mobile.png`
+
+Also check for broken rendering — anything that would block the user from even evaluating the design:
+
+```bash
+curl -s http://localhost:3001 | grep -i "error\|undefined\|cannot read" | head -5
+```
+
+Build a gap analysis. For each issue found, assign a severity:
+
+- 🔴 **Broken** — page crashes, layout completely wrong, content missing
+- 🟡 **Off** — visible but doesn't match the source (wrong colors, spacing, structure)
+- 🟢 **Polish** — close but missing detail (hover states, transitions, spacing refinement)
+
+Evaluate every dimension:
+
+**Colors** — background, header, buttons, text, borders
+**Typography** — font weight, size hierarchy, letter-spacing
+**Layout** — hero height, container width, section padding, grid columns
+**Components** — header structure, product card design, footer layout, button shapes
+**Images** — aspect ratios, object-fit, broken images
+**Mobile** — layout collapse, nav, touch targets, text scaling
+**Polish** — hover states, transitions, consistent spacing, no raw unstyled elements
 
 ---
 
-## Step 13 — Report
+## Step 13 — Present findings and ask for guidance
 
-Tell the user:
+Show the user the issues you found, grouped by severity. Be specific and concise — name the file and element, not just the symptom.
+
+Example format:
+
+```
+Here's what I found comparing your generated store to [source site]:
+
+🔴 Broken
+  - Hero section has no background color — shows white instead of the dark navy from the source
+  - Product cards missing — grid renders but images are broken (placehold.co blocked by next.config?)
+
+🟡 Off
+  - Header: logo is left-aligned but source centers it over a full-width banner
+  - Product cards: image ratio is 1:1 but source uses portrait 4:5
+  - Button corners: source uses pill shape (rounded-full), generated uses rounded-md
+  - Footer: missing the email signup section visible in the source
+
+🟢 Polish
+  - Product card hover has no transition (source slides image up slightly)
+  - Section spacing is inconsistent — hero uses py-8, products section uses py-20
+  - Mobile nav is missing — collapses to nothing on small screens
+
+What would you like me to fix first? I can:
+  A) Fix everything (start with broken, then off, then polish)
+  B) Just fix the broken and off issues, leave polish for later
+  C) Focus on a specific area — just tell me which
+```
+
+**Wait for the user's response before making any changes.**
+
+---
+
+## Step 14 — Fix issues
+
+Based on the user's direction, fix the identified issues. Work in order: broken → off → polish.
+
+For each file you need to change:
+1. Read it first
+2. Make targeted edits — change only what was identified, don't refactor surrounding code
+3. Don't restart the server between edits — Next.js hot reloads automatically
+
+**Common fixes:**
+
+*Colors:* Update CSS custom properties in `globals.css`. Re-extract exact hex values from the source screenshot — look at the screenshot pixel-by-pixel if needed.
+
+*Layout:* Fix padding, max-width, and grid columns in the affected page or component.
+
+*Image ratios:* Wrap `<Image>` in a container with `aspect-ratio` and use `fill` + `object-cover`:
+```tsx
+<div className="relative aspect-[4/5] overflow-hidden">
+  <Image src={...} alt={...} fill className="object-cover" />
+</div>
+```
+
+*Button shapes:* Change `rounded-md` → `rounded-full` (pill) or remove rounding entirely.
+
+*Hover states:* Add `group` to the container and `group-hover:scale-105 transition-transform duration-300` to the image.
+
+*Mobile nav:* Add a hamburger button with `md:hidden` and a dropdown that shows on toggle — use `"use client"` and `useState`.
+
+After making all changes, take a fresh screenshot:
+
+```bash
+node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
+```
+
+Read both screenshots (source + result) again. If significant gaps remain, tell the user what's still off and ask if they want another pass.
+
+---
+
+## Step 15 — Stop the dev server
+
+Kill the dev server process.
+
+---
+
+## Step 16 — Final report
+
+Tell the user what was built and what was fixed:
 
 ```
 Done! Your storefront is at output/<slug>/
+
+What was fixed in the polish pass:
+  [list every change made, one line each]
 
 To run it:
   cd output/<slug>
   npm run dev
 
-Source screenshots:  screenshots/source-<slug>/screenshot.png
-Result screenshot:   screenshots/result-<slug>/screenshot.png
+Source:  screenshots/source-<slug>/screenshot.png
+Result:  screenshots/result-<slug>/screenshot.png
 
 To connect a real Shopify store, open Claude Code inside output/<slug>/ and run /setup-shopify.
 ```
 
-Show the result screenshot path and confirm what was generated.
+If there are remaining gaps that can't be fixed without assets the tool doesn't have (licensed fonts, real product images, proprietary icons), list them so the user knows what to swap in manually.
