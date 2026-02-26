@@ -17,7 +17,24 @@ Confirm these paths exist before proceeding:
 
 ---
 
-## Step 2 — Take a fresh result screenshot
+## Step 2 — Determine the next screenshot label and take a fresh shot
+
+**Screenshot naming convention:**
+- First generation → `screenshot-draft.png`
+- First polish pass → `screenshot-polished.png`
+- Each subsequent pass → `screenshot-polished2.png`, `screenshot-polished3.png`, etc.
+
+Before screenshotting, determine the next available label:
+
+```bash
+n=0
+label="polished"
+while [ -f "screenshots/result-<slug>/screenshot-${label}.png" ]; do
+  n=$((n+1))
+  label="polished${n}"
+done
+echo "Next label: $label"
+```
 
 Start the dev server if it isn't running:
 
@@ -34,10 +51,21 @@ for i in $(seq 1 30); do
 done
 ```
 
-Then screenshot:
+Take the screenshot using the label computed above:
 
 ```bash
-node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
+node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug> $label
+```
+
+This preserves all previous screenshots. The folder will accumulate:
+```
+screenshots/result-<slug>/
+  screenshot-draft.png
+  screenshot-draft-mobile.png
+  screenshot-polished.png
+  screenshot-polished-mobile.png
+  screenshot-polished2.png          ← added on second polish pass
+  screenshot-polished2-mobile.png
 ```
 
 ---
@@ -46,10 +74,12 @@ node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
 
 Read all four screenshots using the Read tool simultaneously:
 
-1. `screenshots/source-<slug>/screenshot.png`
-2. `screenshots/source-<slug>/screenshot-mobile.png`
-3. `screenshots/result-<slug>/screenshot.png`
-4. `screenshots/result-<slug>/screenshot-mobile.png`
+1. `screenshots/source-<slug>/screenshot.png` — original site desktop
+2. `screenshots/source-<slug>/screenshot-mobile.png` — original site mobile
+3. `screenshots/result-<slug>/screenshot-<$label>.png` — current result desktop
+4. `screenshots/result-<slug>/screenshot-<$label>-mobile.png` — current result mobile
+
+where `$label` is the label computed in Step 2.
 
 Build a **gap analysis** — a ranked list of visual problems. Evaluate every dimension below. Be specific about which file and which element needs changing.
 
@@ -214,13 +244,19 @@ This pass elevates the site from "functional" to "published quality."
 
 ## Step 8 — Screenshot and evaluate
 
-Rebuild the screenshot:
+Compute the next available label (same logic as Step 2 — `polished` if it doesn't exist yet, otherwise `polished2`, `polished3`, etc.) and take a new screenshot:
 
 ```bash
-node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
+n=0
+label="polished"
+while [ -f "screenshots/result-<slug>/screenshot-${label}.png" ]; do
+  n=$((n+1))
+  label="polished${n}"
+done
+node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug> $label
 ```
 
-Read both screenshots again (source + result) and score the result on:
+Read both screenshots again (source + the new labeled result) and score the result on:
 
 | Dimension | Score (1–5) |
 |---|---|
@@ -266,8 +302,14 @@ Polished! Here's what was fixed:
 
 [List every change made, grouped by file]
 
-Source:  screenshots/source-<slug>/screenshot.png
-Result:  screenshots/result-<slug>/screenshot.png
+Source (original site):
+  screenshots/source-<slug>/screenshot.png
+  screenshots/source-<slug>/screenshot-mobile.png
+
+Your iterations:
+  screenshots/result-<slug>/screenshot-draft.png
+  screenshots/result-<slug>/screenshot-polished.png
+  screenshots/result-<slug>/screenshot-polished2.png   ← (if additional passes were run)
 
 To run it:
   cd output/<slug>

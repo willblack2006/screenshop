@@ -566,13 +566,13 @@ done
 
 ---
 
-## Step 11 — Screenshot the result
+## Step 11 — Screenshot the result (draft)
 
 ```bash
-node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
+node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug> draft
 ```
 
-Keep the dev server running — you'll need it for the polish pass.
+This saves `screenshot-draft.png` and `screenshot-draft-mobile.png`. Keep the dev server running — you'll need it for the polish pass.
 
 ---
 
@@ -671,13 +671,29 @@ For each file you need to change:
 
 *Mobile nav:* Add a hamburger button with `md:hidden` and a dropdown that shows on toggle — use `"use client"` and `useState`.
 
-After making all changes, take a fresh screenshot:
+After making all changes, take a fresh screenshot. Use the label `polished`:
 
 ```bash
-node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug>
+node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug> polished
 ```
 
-Read both screenshots (source + result) again. If significant gaps remain, tell the user what's still off and ask if they want another pass.
+This saves `screenshot-polished.png` and `screenshot-polished-mobile.png` alongside the draft, never overwriting it.
+
+Read both the source and the new polished screenshot. If significant gaps remain, tell the user what's still off and ask if they want another pass. If they do, the next screenshot label will be `polished2` — see the auto-increment rule below.
+
+**Auto-increment rule for subsequent passes:**
+Before each re-screenshot, check which polished files already exist and pick the next label:
+```bash
+# Outputs the next available label: polished, polished2, polished3, …
+n=0
+label="polished"
+while [ -f "screenshots/result-<slug>/screenshot-${label}.png" ]; do
+  n=$((n+1))
+  label="polished${n}"
+done
+echo $label
+```
+Then run: `node scripts/screenshot.mjs http://localhost:3001 screenshots/result-<slug> $label`
 
 ---
 
@@ -701,8 +717,13 @@ To run it:
   cd output/<slug>
   npm run dev
 
-Source:  screenshots/source-<slug>/screenshot.png
-Result:  screenshots/result-<slug>/screenshot.png
+Source (original site):
+  screenshots/source-<slug>/screenshot.png
+  screenshots/source-<slug>/screenshot-mobile.png
+
+Your iterations:
+  screenshots/result-<slug>/screenshot-draft.png       ← first generation
+  screenshots/result-<slug>/screenshot-polished.png    ← after polish
 
 To connect a real Shopify store, open Claude Code inside output/<slug>/ and run /setup-shopify.
 ```
